@@ -25,6 +25,8 @@ class TextSplitter:
             if paragraph.strip()
         ]
 
+        paragraphs = self._merge_headings(paragraphs)
+
         chunks: list[TextChunk] = []
 
         for paragraph in paragraphs:
@@ -41,3 +43,20 @@ class TextSplitter:
                 )
 
         return chunks
+
+    def _merge_headings(self, paragraphs: list[str]) -> list[str]:
+        merged: list[str] = []
+        index = 0
+
+        while index < len(paragraphs):
+            paragraph = paragraphs[index]
+
+            if paragraph.startswith("#") and index + 1 < len(paragraphs):
+                merged.append(f"{paragraph}\n{paragraphs[index + 1]}")
+                index += 2
+                continue
+
+            merged.append(paragraph)
+            index += 1
+
+        return merged

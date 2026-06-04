@@ -410,6 +410,7 @@ class ToolRegistry:
             "top_k": top_k,
             "items": [
                 {
+                    "chunk_id": item.chunk_id,
                     "source": item.source,
                     "content": item.content,
                     "score": item.score,

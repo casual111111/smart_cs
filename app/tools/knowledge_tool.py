@@ -1,3 +1,4 @@
+from app.RAG.context_builder import ContextBuilder, RagContext
 from app.RAG.retriever import RetrievedChunk, SimpleRetriever
 
 
@@ -11,6 +12,7 @@ class KnowledgeTool:
 
     def __init__(self):
         self.retriever = SimpleRetriever()
+        self.context_builder = ContextBuilder()
 
     def search_knowledge(
         self,
@@ -18,6 +20,19 @@ class KnowledgeTool:
         top_k: int = 3,
     ) -> list[RetrievedChunk]:
         return self.retriever.retrieve(query, top_k=top_k)
+
+    def build_rag_context(
+        self,
+        query: str,
+        top_k: int = 3,
+        max_chars: int = 1600,
+    ) -> RagContext:
+        chunks = self.search_knowledge(query=query, top_k=top_k)
+        return self.context_builder.build(
+            query=query,
+            chunks=chunks,
+            max_chars=max_chars,
+        )
 
     def reload_knowledge_base(self) -> None:
         self.retriever.load_documents()
