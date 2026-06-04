@@ -150,6 +150,7 @@ async def chat_stream(
         # 先发送元信息
         meta = {
             "session_id": result["session_id"],
+            "trace_id": result["trace_id"],
             "intent": result["intent"],
             "intent_confidence": result["intent_confidence"],
             "intent_reason": result["intent_reason"],

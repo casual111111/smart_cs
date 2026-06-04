@@ -242,7 +242,7 @@ class ToolRegistry:
             return {
                 "refundable": False,
                 "reason": "该订单不属于当前用户",
-                "order": self._serialize_order(order),
+                "order": None,
             }
 
         refundable, reason = self.order_tool.is_refundable(order)
