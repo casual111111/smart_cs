@@ -126,6 +126,38 @@ class ToolRegistry:
                 },
                 "handler": self._list_tickets,
             },
+            "create_complaint_ticket": {
+                "description": "创建高优先级投诉工单，用于投诉、举报、不满意等场景。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "summary": {
+                            "type": "string",
+                            "description": "投诉摘要",
+                        },
+                        "order_id": {
+                            "type": "string",
+                            "description": "相关订单号，可选",
+                        },
+                    },
+                    "required": ["summary"],
+                },
+                "handler": self._create_complaint_ticket,
+            },
+            "escalate_to_human": {
+                "description": "标记当前问题需要人工客服介入。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reason": {
+                            "type": "string",
+                            "description": "需要人工介入的原因",
+                        }
+                    },
+                    "required": ["reason"],
+                },
+                "handler": self._escalate_to_human,
+            },
             "search_knowledge": {
                 "description": "检索本地知识库，回答政策、流程、规则类问题。",
                 "parameters": {
@@ -322,6 +354,42 @@ class ToolRegistry:
                 self._serialize_ticket(ticket)
                 for ticket in tickets
             ],
+        }
+
+    def _create_complaint_ticket(
+        self,
+        user_id: str,
+        summary: str,
+        order_id: str | None = None,
+    ) -> dict[str, Any]:
+        if order_id:
+            order = self.order_tool.get_order(order_id)
+
+            if order is None:
+                raise ValueError(f"订单不存在：{order_id}")
+
+            if order.user_id != user_id:
+                raise PermissionError("该订单不属于当前用户，无法创建投诉工单")
+
+        ticket = self.ticket_tool.create_ticket(
+            user_id=user_id,
+            ticket_type="complaint",
+            priority="high",
+            summary=summary[:500] or "用户发起投诉，需要人工跟进",
+            order_id=order_id,
+        )
+
+        return self._serialize_ticket(ticket)
+
+    def _escalate_to_human(
+        self,
+        user_id: str,
+        reason: str,
+    ) -> dict[str, Any]:
+        return {
+            "need_human_review": True,
+            "reason": reason,
+            "message": "已标记为需要人工客服介入",
         }
 
     def _search_knowledge(

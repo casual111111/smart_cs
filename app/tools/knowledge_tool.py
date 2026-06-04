@@ -1,4 +1,4 @@
-from app.RAG.simple_retriever import RetrievedChunk, SimpleRetriever
+from app.RAG.retriever import RetrievedChunk, SimpleRetriever
 
 
 class KnowledgeTool:

@@ -541,3 +541,93 @@ class LongTermMemory(Base):
         default=datetime.now,
         nullable=False,
     )
+
+
+class HumanReviewTask(Base):
+    """
+    人工审核任务表。
+
+    用于承接投诉、合规拦截、低置信度路由等需要人工介入的客服会话。
+    """
+
+    __tablename__ = "human_review_tasks"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    review_id: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    session_id: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+    )
+
+    trace_id: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(32),
+        index=True,
+        nullable=False,
+        default="pending",
+    )
+
+    reason: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    request_content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    agent_response: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    reviewer_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    reviewer_comment: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    reviewed_at: Mapped[datetime | None] = mapped_column(
+        DateTime,
+        nullable=True,
+    )

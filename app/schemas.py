@@ -36,6 +36,8 @@ class ChatResponse(BaseModel):
     intent_reason: str
     intent_confidence: float
     compliance_passed: bool
+    need_human_review: bool = False
+    review_task_id: str | None = None
     memory_count: int
     trace_id: str
 
@@ -153,3 +155,33 @@ class ChatMessageListResponse(BaseModel):
 class ToolExecuteRequest(BaseModel):
     tool_name: str
     arguments: dict = {}
+
+
+class HumanReviewTaskResponse(BaseModel):
+    review_id: str
+    session_id: str
+    trace_id: str
+    user_id: str
+    status: str
+    reason: str
+    request_content: str
+    agent_response: str
+    reviewer_id: str | None = None
+    reviewer_comment: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    reviewed_at: datetime | None = None
+
+    class Config:
+        from_attributes = True
+
+
+class HumanReviewTaskListResponse(BaseModel):
+    total: int
+    limit: int
+    offset: int
+    items: list[HumanReviewTaskResponse]
+
+
+class HumanReviewDecisionRequest(BaseModel):
+    comment: str | None = None

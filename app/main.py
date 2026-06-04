@@ -10,6 +10,9 @@ from app.schemas import (
     ChatSessionListResponse,
     ChatRequest,
     ChatResponse,
+    HumanReviewDecisionRequest,
+    HumanReviewTaskListResponse,
+    HumanReviewTaskResponse,
     OrderListResponse,
     OrderResponse,
     OrderCreateRequest,
@@ -27,6 +30,7 @@ from app.supervisor import Supervisor
 from app.tools.order_tool import OrderTool
 from app.tools.user_tool import UserTool
 from app.tools.chat_history_tool import ChatHistoryTool
+from app.tools.human_review_tool import HumanReviewTool
 from app.models import User
 
 from app.auth import (
@@ -54,6 +58,7 @@ user_tool = UserTool()
 chat_history_tool = ChatHistoryTool()
 tool_registry = ToolRegistry()
 trace_tool = TraceTool()
+human_review_tool = HumanReviewTool()
 
 @app.get("/health")
 async def health_check():
@@ -155,6 +160,8 @@ async def chat_stream(
             "intent_confidence": result["intent_confidence"],
             "intent_reason": result["intent_reason"],
             "compliance_passed": result["compliance_passed"],
+            "need_human_review": result["need_human_review"],
+            "review_task_id": result["review_task_id"],
             "memory_count": result["memory_count"],
         }
 
@@ -475,4 +482,95 @@ async def list_agent_traces(
             }
             for item in traces
         ],
+    }
+
+
+@app.get("/api/admin/reviews", response_model=HumanReviewTaskListResponse)
+async def list_human_review_tasks(
+    admin_user: Annotated[User, Depends(require_admin)],
+    status: str | None = Query(default="pending"),
+    user_id: str | None = None,
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    tasks, total = human_review_tool.list_review_tasks(
+        status=status,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+    )
+
+    return HumanReviewTaskListResponse(
+        total=total,
+        limit=limit,
+        offset=offset,
+        items=tasks,
+    )
+
+
+@app.post(
+    "/api/admin/reviews/{review_id}/approve",
+    response_model=HumanReviewTaskResponse,
+)
+async def approve_human_review_task(
+    review_id: str,
+    request: HumanReviewDecisionRequest,
+    admin_user: Annotated[User, Depends(require_admin)],
+):
+    task = human_review_tool.approve_review_task(
+        review_id=review_id,
+        reviewer_id=admin_user.user_id,
+        comment=request.comment,
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"人工审核任务不存在：{review_id}",
+        )
+
+    return task
+
+
+@app.post(
+    "/api/admin/reviews/{review_id}/reject",
+    response_model=HumanReviewTaskResponse,
+)
+async def reject_human_review_task(
+    review_id: str,
+    request: HumanReviewDecisionRequest,
+    admin_user: Annotated[User, Depends(require_admin)],
+):
+    task = human_review_tool.reject_review_task(
+        review_id=review_id,
+        reviewer_id=admin_user.user_id,
+        comment=request.comment,
+    )
+
+    if task is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"人工审核任务不存在：{review_id}",
+        )
+
+    return task
+
+
+@app.get("/api/metrics")
+async def get_metrics(
+    admin_user: Annotated[User, Depends(require_admin)],
+):
+    trace_metrics = trace_tool.get_metrics()
+    review_metrics = human_review_tool.get_review_metrics()
+
+    total_requests = trace_metrics.get("total_requests", 0)
+
+    return {
+        **trace_metrics,
+        "human_review_rate": (
+            round(review_metrics["total"] / total_requests, 4)
+            if total_requests
+            else 0.0
+        ),
+        "human_review": review_metrics,
     }
