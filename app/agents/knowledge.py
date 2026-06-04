@@ -1,22 +1,81 @@
-from app.agents.llm_agent import LLMAgent
+from app.agents.base_tool_agent import BaseToolAgent
 from app.tools.knowledge_tool import KnowledgeTool
 
 
-class KnowledgeAgent:
+class KnowledgeAgent(BaseToolAgent):
     """
     知识问答 Agent。
 
     当前版本：
-    - KnowledgeAgent 负责组织回答逻辑
-    - KnowledgeTool 负责检索知识库
-    - LLMAgent 负责生成自然语言回答
+    - 继承 BaseToolAgent
+    - 只能调用 search_knowledge
+    - LLM 可用时走 ReAct 工具调用
+    - LLM 不可用时走本地兜底检索
     """
 
     def __init__(self):
-        self.knowledge_tool = KnowledgeTool()
-        self.llm_agent = LLMAgent()
+        super().__init__(
+            agent_name="KnowledgeAgent 知识库问答智能体",
+            allowed_tools=[
+                "search_knowledge",
+            ],
+        )
 
-    async def run(self, message: str) -> str:
+        # 保留直接工具，给 reload_knowledge_base 和 fallback 用
+        self.knowledge_tool = KnowledgeTool()
+
+    async def run(
+        self,
+        message: str,
+        user_id: str,
+        context: str = "",
+        session_id: str = "",
+        trace_id: str | None = None,
+    ) -> str:
+        """
+        聊天入口。
+
+        LLM 开启：
+        - 让 KnowledgeAgent 自己决定是否调用 search_knowledge
+
+        LLM 未开启：
+        - 直接走本地知识库检索，避免测试环境不可用
+        """
+        if not self.llm.enabled:
+            return self._fallback_search(message)
+
+        system_instruction = """
+你负责处理客服系统中的知识库问答问题。
+
+你的职责：
+1. 回答政策、规则、流程、说明类问题。
+2. 必须优先调用 search_knowledge 检索本地知识库。
+3. 不要编造知识库中不存在的政策。
+4. 如果 search_knowledge 没有返回结果，要告诉用户知识库暂时没有相关信息，并建议转人工。
+5. 如果工具返回了多个资料片段，要综合整理成自然语言回答。
+6. 最终回答要简洁、清楚、适合客服场景。
+7. 如果引用了知识库内容，最后要说明参考来源。
+"""
+
+        result = await self.react_with_tools(
+            message=message,
+            user_id=user_id,
+            context=context,
+            system_instruction=system_instruction,
+            session_id=session_id,
+            node_name="knowledge_agent_node",
+            trace_id=trace_id,
+            max_steps=4,
+        )
+
+        return result.final_answer
+
+    def _fallback_search(self, message: str) -> str:
+        """
+        没有配置 LLM 时的兜底逻辑。
+
+        这样 pytest、本地开发、无 API Key 环境也可以跑通。
+        """
         results = self.knowledge_tool.search_knowledge(
             query=message,
             top_k=3,
@@ -25,54 +84,17 @@ class KnowledgeAgent:
         if not results:
             return "抱歉，知识库中暂时没有找到相关信息，建议转人工客服处理。"
 
-        context = self._build_context(results)
-
-        if self.llm_agent.llm.enabled:
-            answer = await self.llm_agent.generate_answer(
-                question=message,
-                context=context,
-            )
-
-            if answer:
-                sources = self._build_sources(results)
-                return f"{answer}\n\n参考来源：{sources}"
-
-        return self._fallback_answer(results)
-
-    def _build_context(self, results) -> str:
-        parts = []
-
-        for index, item in enumerate(results, start=1):
-            parts.append(
-                f"【资料 {index}】\n"
-                f"来源：{item.source}\n"
-                f"内容：{item.content}"
-            )
-
-        return "\n\n".join(parts)
-
-    def _build_sources(self, results) -> str:
-        sources = []
-
-        for item in results:
-            if item.source not in sources:
-                sources.append(item.source)
-
-        return "、".join(sources)
-
-    def _fallback_answer(self, results) -> str:
         answer_parts = ["根据知识库，我找到以下相关信息："]
 
         for index, item in enumerate(results, start=1):
             answer_parts.append(
-                f"\n【资料 {index}】\n"
+                f"\n〖资料 {index}〗\n"
                 f"来源：{item.source}\n"
                 f"相关度：{item.score:.1f}\n"
                 f"{item.content}"
             )
 
         answer_parts.append("\n\n以上内容来自本地知识库，仅供参考。")
-
         return "\n".join(answer_parts)
 
     def reload_knowledge_base(self) -> None:

@@ -9,7 +9,8 @@ from app.agents.knowledge import KnowledgeAgent
 from app.agents.ticket import TicketAgent
 from app.agents.compliance import ComplianceAgent
 from app.tools.chat_history_tool import ChatHistoryTool
-
+from app.memory.working_memory import create_working_memory
+from app.tools.long_term_memory_tool import LongTermMemoryTool
 
 IntentType = Literal[
     "knowledge",
@@ -54,6 +55,15 @@ class ChatState(TypedDict, total=False):
     compliance_decision_source: str | None
 
     memory_count: int
+####################################
+    trace_id: str
+    current_agent: str
+    sub_results: dict
+    tool_steps: list
+    tool_observations: list
+    retry_count: int
+    compliance_result: dict
+    need_human_review: bool
 
 
 class Supervisor:
@@ -77,6 +87,7 @@ class Supervisor:
         self.compliance_agent = ComplianceAgent()
 
         self.chat_history_tool = ChatHistoryTool()
+        self.long_term_memory_tool = LongTermMemoryTool()
 
         self.graph = self._build_graph()
 
@@ -126,6 +137,7 @@ class Supervisor:
             "message": message,
             "user_id": user_id,
             "session_id": session_id,
+            **create_working_memory(),
         }
 
         final_state = await self.graph.ainvoke(initial_state)
@@ -133,6 +145,7 @@ class Supervisor:
         return {
             "response": final_state["final_response"],
             "session_id": final_state["session_id"],
+            "trace_id": final_state.get("trace_id", ""),
             "intent": final_state.get("intent", "unknown"),
             "intent_confidence": final_state.get("intent_confidence", 0.0),
             "intent_reason": final_state.get("intent_reason", ""),
@@ -142,11 +155,24 @@ class Supervisor:
 
     async def _load_memory_node(self, state: ChatState) -> dict:
         session_id = state["session_id"]
+        user_id = state["user_id"]
 
-        context = self.memory.get_recent_context(session_id)
+        short_context = self.memory.get_recent_context(session_id)
+        long_context = self.long_term_memory_tool.build_user_context(user_id)
+
+        context_parts = []
+
+        if long_context:
+            context_parts.append("【长期记忆】")
+            context_parts.append(long_context)
+
+        if short_context:
+            context_parts.append("【短期记忆】")
+            context_parts.append(short_context)
 
         return {
-            "context": context,
+            "context": "\n".join(context_parts),
+            "current_agent": "memory_loader",
         }
 
     async def _route_intent_node(self, state: ChatState) -> dict:
@@ -178,19 +204,26 @@ class Supervisor:
             user_id=state["user_id"],
             context=state.get("context", ""),
             session_id=state["session_id"],
+            trace_id=state.get("trace_id"),
         )
 
         return {
             "raw_response": raw_response,
+            "current_agent": "ticket_agent",
         }
 
     async def _knowledge_node(self, state: ChatState) -> dict:
         raw_response = await self.knowledge_agent.run(
             message=state["message"],
+            user_id=state["user_id"],
+            context=state.get("context", ""),
+            session_id=state["session_id"],
+            trace_id=state.get("trace_id"),
         )
 
         return {
             "raw_response": raw_response,
+            "current_agent": "knowledge_agent",
         }
 
     async def _unknown_node(self, state: ChatState) -> dict:
@@ -240,7 +273,7 @@ class Supervisor:
             content=assistant_message,
         )
 
-        # 2. 写入 MySQL 长期聊天记录
+        # 2. 写入 MySQL 短期记忆
         title = user_message[:30]
 
         self.chat_history_tool.ensure_session(
@@ -261,6 +294,26 @@ class Supervisor:
             user_id=user_id,
             role="assistant",
             content=assistant_message,
+        )
+
+                # 3. 更新长期记忆：用户画像
+        self.long_term_memory_tool.update_profile_by_intent(
+            user_id=user_id,
+            intent=state.get("intent", "unknown"),
+        )
+
+        # 4. 保存会话摘要
+        summary = (
+            f"用户问题：{user_message}\n"
+            f"系统回复：{assistant_message}\n"
+            f"识别意图：{state.get('intent', 'unknown')}"
+        )
+
+        self.long_term_memory_tool.upsert_conversation_summary(
+            session_id=session_id,
+            user_id=user_id,
+            summary=summary[:1000],
+            message_count=self.memory.count(session_id),
         )
 
         return {

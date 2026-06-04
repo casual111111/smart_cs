@@ -84,6 +84,7 @@ class BaseToolAgent:
         session_id: str,
         node_name: str,
         max_steps: int = 5,
+        trace_id: str | None = None,
     ) -> AgentToolResult:
         """
         通用 ReAct 工具调用循环。
@@ -91,7 +92,7 @@ class BaseToolAgent:
         专业 Agent 传入自己的 system_instruction，
         BaseToolAgent 负责执行通用工具调用逻辑。
         """
-        trace_id = str(uuid.uuid4())
+        trace_id = trace_id or str(uuid.uuid4())
 
         if not self.llm.enabled:
             return AgentToolResult(

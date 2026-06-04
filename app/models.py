@@ -356,4 +356,188 @@ class AgentTrace(Base):
         default=datetime.now,
         nullable=False,
     )
-    
+
+class UserProfile(Base):
+    """
+    用户画像长期记忆。
+
+    保存用户长期偏好、常见问题、风险等级等。
+    """
+    __tablename__ = "user_profiles"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    common_questions: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    preference_summary: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    risk_level: Mapped[str] = mapped_column(
+        String(32),
+        default="normal",
+        nullable=False,
+    )
+
+    refund_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    complaint_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+
+class ConversationSummary(Base):
+    """
+    会话摘要长期记忆。
+
+    不保存完整多轮上下文，而是保存压缩后的摘要。
+    """
+    __tablename__ = "conversation_summaries"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    session_id: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+    )
+
+    summary: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    message_count: Mapped[int] = mapped_column(
+        Integer,
+        default=0,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+
+class LongTermMemory(Base):
+    """
+    通用长期记忆表。
+
+    后续可以接 FAISS / Chroma / Milvus，
+    这里先用 MySQL 存结构化长期记忆。
+    """
+    __tablename__ = "long_term_memories"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    memory_id: Mapped[str] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+        nullable=False,
+    )
+
+    memory_type: Mapped[str] = mapped_column(
+        String(32),
+        index=True,
+        nullable=False,
+    )
+
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    source_type: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+    )
+
+    source_id: Mapped[str | None] = mapped_column(
+        String(64),
+        nullable=True,
+    )
+
+    importance: Mapped[int] = mapped_column(
+        Integer,
+        default=1,
+        nullable=False,
+    )
+
+    embedding: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )

@@ -37,6 +37,7 @@ class ChatResponse(BaseModel):
     intent_confidence: float
     compliance_passed: bool
     memory_count: int
+    trace_id: str
 
 class TicketResponse(BaseModel):
     ticket_id: str
