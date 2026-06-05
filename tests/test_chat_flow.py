@@ -13,6 +13,32 @@ class FakeLLM:
     enabled = False
 
 
+class FakeKnowledgeLLM:
+    enabled = True
+
+    def __init__(self):
+        self.calls = 0
+
+    async def chat(
+        self,
+        system_prompt,
+        user_prompt,
+        temperature=0.0,
+    ):
+        self.calls += 1
+
+        if self.calls == 1:
+            return (
+                '{"action": "tool", "tool_name": "build_rag_context", '
+                '"arguments": {"query": "退款多久到账？", "top_k": 3}}'
+            )
+
+        return (
+            '{"action": "final", '
+            '"answer": "退款一般会在审核通过后的 3-5 个工作日内原路退回。"}'
+        )
+
+
 class FakeTraceTool:
     def __init__(self):
         self.records = []
@@ -25,6 +51,20 @@ class FakeTraceTool:
 class FakeToolRegistry:
     def __init__(self):
         self.calls = []
+
+    def list_tools(self):
+        return [
+            {
+                "name": "build_rag_context",
+                "description": "构建 RAG 上下文",
+                "parameters": {"type": "object", "properties": {}},
+            },
+            {
+                "name": "search_knowledge",
+                "description": "检索知识库",
+                "parameters": {"type": "object", "properties": {}},
+            },
+        ]
 
     async def execute(self, tool_name, arguments, user_id):
         self.calls.append(
@@ -83,6 +123,31 @@ class FakeToolRegistry:
                     "status": "created",
                     "type": "complaint",
                     "summary": arguments["summary"],
+                },
+            )
+
+        if tool_name == "build_rag_context":
+            return ToolResult(
+                success=True,
+                tool_name=tool_name,
+                data={
+                    "query": arguments["query"],
+                    "top_k": arguments["top_k"],
+                    "max_chars": 1600,
+                    "context": (
+                        "[资料 1]\n"
+                        "来源：refund.md\n"
+                        "退款一般会在审核通过后的 3-5 个工作日内原路退回。"
+                    ),
+                    "sources": ["refund.md"],
+                    "items": [
+                        {
+                            "chunk_id": "refund.md#1",
+                            "source": "refund.md",
+                            "content": "退款一般会在审核通过后的 3-5 个工作日内原路退回。",
+                            "score": 9.0,
+                        }
+                    ],
                 },
             )
 
@@ -203,6 +268,27 @@ def test_knowledge_agent_fallback_searches_knowledge_base():
 
     assert "refund.md" in answer
     assert "3-5 个工作日" in answer
+
+
+def test_knowledge_agent_uses_rag_context_and_keeps_sources():
+    agent = KnowledgeAgent()
+    agent.llm = FakeKnowledgeLLM()
+    agent.tool_registry = FakeToolRegistry()
+    agent.trace_tool = FakeTraceTool()
+
+    answer = asyncio.run(
+        agent.run(
+            message="退款多久到账？",
+            user_id="user-1",
+            session_id="session-1",
+            trace_id="trace-rag",
+        )
+    )
+
+    assert "3-5 个工作日" in answer
+    assert "参考来源" in answer
+    assert "refund.md" in answer
+    assert agent.tool_registry.calls[0]["tool_name"] == "build_rag_context"
 
 
 def test_complaint_creates_ticket_and_review_task():

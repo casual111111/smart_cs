@@ -158,6 +158,28 @@ class ToolRegistry:
                 },
                 "handler": self._escalate_to_human,
             },
+            "build_rag_context": {
+                "description": "构建可直接用于回答的 RAG 上下文，返回知识片段、来源和合并后的 context。",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "query": {
+                            "type": "string",
+                            "description": "用户问题或检索关键词",
+                        },
+                        "top_k": {
+                            "type": "integer",
+                            "description": "返回最相关的知识片段数量，默认 3",
+                        },
+                        "max_chars": {
+                            "type": "integer",
+                            "description": "RAG context 最大字符数，默认 1600",
+                        },
+                    },
+                    "required": ["query"],
+                },
+                "handler": self._build_rag_context,
+            },
             "search_knowledge": {
                 "description": "检索本地知识库，回答政策、流程、规则类问题。",
                 "parameters": {
@@ -398,16 +420,32 @@ class ToolRegistry:
         query: str,
         top_k: int = 3,
     ) -> dict[str, Any]:
+        return self._build_rag_context(
+            user_id=user_id,
+            query=query,
+            top_k=top_k,
+        )
+
+    def _build_rag_context(
+        self,
+        user_id: str,
+        query: str,
+        top_k: int = 3,
+        max_chars: int = 1600,
+    ) -> dict[str, Any]:
         top_k = max(1, min(top_k, 10))
+        max_chars = max(200, min(max_chars, 5000))
 
         rag_context = self.knowledge_tool.build_rag_context(
             query=query,
             top_k=top_k,
+            max_chars=max_chars,
         )
 
         return {
             "query": query,
             "top_k": top_k,
+            "max_chars": max_chars,
             "context": rag_context.context,
             "sources": rag_context.sources,
             "items": [
