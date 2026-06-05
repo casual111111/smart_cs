@@ -10,6 +10,19 @@
     ]
   },
   {
+    "id": "refund_002",
+    "messages": [
+      "我要申请退款",
+      "订单号 ORDER-TEST-002"
+    ],
+    "expected_intent": "refund",
+    "expected_agent": "ticket",
+    "expected_tools": [
+      "check_refund_eligibility",
+      "create_refund_ticket"
+    ]
+  },
+  {
     "id": "knowledge_001",
     "message": "退款多久到账？",
     "expected_intent": "knowledge",
@@ -25,5 +38,16 @@
     "expected_intent": "complaint",
     "expected_agent": "complaint",
     "expected_human_review": true
+  },
+  {
+    "id": "trace_001",
+    "message": "我要退款，订单号 ORDER-TRACE-001",
+    "expected_intent": "refund",
+    "expected_agent": "ticket",
+    "expected_tools": [
+      "check_refund_eligibility",
+      "create_refund_ticket"
+    ],
+    "expected_trace_consistent": true
   }
 ]

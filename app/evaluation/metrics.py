@@ -28,6 +28,10 @@ def calculate_metrics(
         "tool_selection_accuracy": _tool_selection_accuracy(cases, result_by_id),
         "rag_source_hit_rate": _source_hit_rate(cases, result_by_id),
         "human_review_trigger_accuracy": _human_review_accuracy(cases, result_by_id),
+        "trace_consistency_accuracy": _trace_consistency_accuracy(
+            cases,
+            result_by_id,
+        ),
         "avg_latency_ms": _avg_latency(results),
     }
 
@@ -130,6 +134,30 @@ def _human_review_accuracy(
         checked += 1
         if bool(result.get("actual_human_review")) == bool(
             case["expected_human_review"]
+        ):
+            matched += 1
+
+    return _ratio(matched, checked)
+
+
+def _trace_consistency_accuracy(
+    cases: list[dict[str, Any]],
+    result_by_id: dict[str, dict[str, Any]],
+) -> float:
+    checked = 0
+    matched = 0
+
+    for case in cases:
+        if "expected_trace_consistent" not in case:
+            continue
+
+        result = result_by_id.get(case["id"])
+        if result is None:
+            continue
+
+        checked += 1
+        if bool(result.get("actual_trace_consistent")) == bool(
+            case["expected_trace_consistent"]
         ):
             matched += 1
 
