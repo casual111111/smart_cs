@@ -1,5 +1,5 @@
-from app.RAG.context_builder import ContextBuilder, RagContext
-from app.RAG.retriever import RetrievedChunk, SimpleRetriever
+from app.rag.context_builder import ContextBuilder, RagContext
+from app.rag.retriever import RetrievedChunk, SimpleRetriever
 
 
 class KnowledgeTool:

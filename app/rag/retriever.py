@@ -1,10 +1,10 @@
 from dataclasses import dataclass
 
-from app.RAG.embeddings import LocalEmbeddingClient
-from app.RAG.loader import DocumentLoader
-from app.RAG.reranker import KeywordReranker
-from app.RAG.splitter import TextChunk, TextSplitter
-from app.RAG.vector_store import InMemoryVectorStore, VectorDocument
+from app.rag.embeddings import LocalEmbeddingClient
+from app.rag.loader import DocumentLoader
+from app.rag.reranker import KeywordReranker
+from app.rag.splitter import TextChunk, TextSplitter
+from app.rag.vector_store import InMemoryVectorStore, VectorDocument
 
 
 @dataclass

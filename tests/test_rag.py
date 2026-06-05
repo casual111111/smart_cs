@@ -1,7 +1,8 @@
-from app.RAG.context_builder import ContextBuilder
-from app.RAG.embeddings import LocalEmbeddingClient
-from app.RAG.retriever import SimpleRetriever
-from app.RAG.vector_store import InMemoryVectorStore, VectorDocument
+from app.rag.context_builder import ContextBuilder
+from app.rag.embeddings import LocalEmbeddingClient
+from app.rag.retriever import SimpleRetriever
+from app.rag.vector_store import InMemoryVectorStore, VectorDocument
+from app.tools.knowledge_tool import KnowledgeTool
 
 
 def test_local_embedding_is_deterministic():
@@ -120,3 +121,28 @@ def test_context_builder_keeps_sources_and_limits_context(tmp_path):
     assert context.sources == ["refund.md"]
     assert "来源：refund.md" in context.context
     assert "退款" in context.context
+
+
+def test_knowledge_tool_builds_rag_context_with_sources(tmp_path):
+    knowledge_dir = tmp_path / "knowledge_base"
+    knowledge_dir.mkdir()
+
+    (knowledge_dir / "refund.md").write_text(
+        "# 退款规则\n\n退款一般会在 3-5 个工作日内处理。",
+        encoding="utf-8",
+    )
+
+    tool = KnowledgeTool()
+    tool.retriever = SimpleRetriever(
+        knowledge_dir=str(knowledge_dir),
+        embedding_dimension=64,
+    )
+
+    context = tool.build_rag_context(
+        query="退款多久到账？",
+        top_k=3,
+    )
+
+    assert context.sources == ["refund.md"]
+    assert context.chunks[0].chunk_id.startswith("refund.md#")
+    assert "来源：refund.md" in context.context

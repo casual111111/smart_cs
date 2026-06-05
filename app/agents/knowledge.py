@@ -76,10 +76,24 @@ class KnowledgeAgent(BaseToolAgent):
 
         这样 pytest、本地开发、无 API Key 环境也可以跑通。
         """
-        results = self.knowledge_tool.search_knowledge(
-            query=message,
-            top_k=3,
-        )
+        if hasattr(self.knowledge_tool, "build_rag_context"):
+            rag_context = self.knowledge_tool.build_rag_context(
+                query=message,
+                top_k=3,
+            )
+            results = rag_context.chunks
+            sources = rag_context.sources
+        else:
+            results = self.knowledge_tool.search_knowledge(
+                query=message,
+                top_k=3,
+            )
+            sources = list(
+                dict.fromkeys(
+                    item.source
+                    for item in results
+                )
+            )
 
         if not results:
             return "抱歉，知识库中暂时没有找到相关信息，建议转人工客服处理。"
@@ -94,7 +108,11 @@ class KnowledgeAgent(BaseToolAgent):
                 f"{item.content}"
             )
 
-        answer_parts.append("\n\n以上内容来自本地知识库，仅供参考。")
+        answer_parts.append(
+            "\n\n参考来源："
+            + "、".join(sources)
+            + "。以上内容来自本地知识库，仅供参考。"
+        )
         return "\n".join(answer_parts)
 
     def reload_knowledge_base(self) -> None:

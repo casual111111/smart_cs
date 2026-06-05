@@ -400,7 +400,7 @@ class ToolRegistry:
     ) -> dict[str, Any]:
         top_k = max(1, min(top_k, 10))
 
-        chunks = self.knowledge_tool.search_knowledge(
+        rag_context = self.knowledge_tool.build_rag_context(
             query=query,
             top_k=top_k,
         )
@@ -408,6 +408,8 @@ class ToolRegistry:
         return {
             "query": query,
             "top_k": top_k,
+            "context": rag_context.context,
+            "sources": rag_context.sources,
             "items": [
                 {
                     "chunk_id": item.chunk_id,
@@ -415,7 +417,7 @@ class ToolRegistry:
                     "content": item.content,
                     "score": item.score,
                 }
-                for item in chunks
+                for item in rag_context.chunks
             ],
         }
 
