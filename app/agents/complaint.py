@@ -3,7 +3,7 @@ import time
 import uuid
 
 from app.agents.base_tool_agent import BaseToolAgent
-from app.tools.registry import ToolResult
+from app.tools.result import ToolResult
 
 
 class ComplaintAgent(BaseToolAgent):

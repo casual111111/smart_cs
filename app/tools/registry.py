@@ -1,28 +1,11 @@
-from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Callable
 
 from app.models import Order, Ticket
 from app.tools.knowledge_tool import KnowledgeTool
 from app.tools.order_tool import OrderTool
+from app.tools.result import ToolResult
 from app.tools.ticket_tool import TicketTool
-
-
-@dataclass
-class ToolResult:
-    """
-    工具执行结果。
-
-    success: 工具是否执行成功
-    tool_name: 工具名称
-    data: 工具返回数据
-    error: 错误信息
-    """
-
-    success: bool
-    tool_name: str
-    data: Any = None
-    error: str | None = None
 
 
 class ToolRegistry:

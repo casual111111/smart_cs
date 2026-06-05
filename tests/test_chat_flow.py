@@ -6,7 +6,7 @@ from app.agents.complaint import ComplaintAgent
 from app.agents.knowledge import KnowledgeAgent
 from app.agents.ticket import TicketAgent
 from app.supervisor import Supervisor
-from app.tools.registry import ToolResult
+from app.tools.result import ToolResult
 
 
 class FakeLLM:

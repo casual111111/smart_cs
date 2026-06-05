@@ -1,0 +1,29 @@
+[
+  {
+    "id": "refund_001",
+    "message": "我想退款，订单号 ORDER-TEST-001",
+    "expected_intent": "refund",
+    "expected_agent": "ticket",
+    "expected_tools": [
+      "check_refund_eligibility",
+      "create_refund_ticket"
+    ]
+  },
+  {
+    "id": "knowledge_001",
+    "message": "退款多久到账？",
+    "expected_intent": "knowledge",
+    "expected_agent": "knowledge",
+    "expected_sources": [
+      "refund_policy.md",
+      "refund.md"
+    ]
+  },
+  {
+    "id": "complaint_001",
+    "message": "我要投诉，要求人工客服处理",
+    "expected_intent": "complaint",
+    "expected_agent": "complaint",
+    "expected_human_review": true
+  }
+]

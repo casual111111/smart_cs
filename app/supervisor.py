@@ -2,19 +2,7 @@ import uuid
 import time
 from typing import Literal, TypedDict
 
-from langgraph.graph import END, START, StateGraph
-
-from app.memory import ConversationMemory
-from app.agents.complaint import ComplaintAgent
-from app.agents.intent_router import IntentRouterAgent
-from app.agents.knowledge import KnowledgeAgent
-from app.agents.ticket import TicketAgent
-from app.agents.compliance import ComplianceAgent
-from app.tools.chat_history_tool import ChatHistoryTool
 from app.memory.working_memory import create_working_memory
-from app.tools.human_review_tool import HumanReviewTool
-from app.tools.long_term_memory_tool import LongTermMemoryTool
-from app.tools.trace_tool import TraceTool
 
 IntentType = Literal[
     "knowledge",
@@ -93,21 +81,153 @@ class Supervisor:
     """
 
     def __init__(self):
-        self.memory = ConversationMemory()
-        self.intent_router = IntentRouterAgent()
-        self.knowledge_agent = KnowledgeAgent()
-        self.ticket_agent = TicketAgent()
-        self.complaint_agent = ComplaintAgent()
-        self.compliance_agent = ComplianceAgent()
+        self._memory = None
+        self._intent_router = None
+        self._knowledge_agent = None
+        self._ticket_agent = None
+        self._complaint_agent = None
+        self._compliance_agent = None
 
-        self.chat_history_tool = ChatHistoryTool()
-        self.human_review_tool = HumanReviewTool()
-        self.long_term_memory_tool = LongTermMemoryTool()
-        self.trace_tool = TraceTool()
+        self._chat_history_tool = None
+        self._human_review_tool = None
+        self._long_term_memory_tool = None
+        self._trace_tool = None
 
-        self.graph = self._build_graph()
+        self.graph = None
+
+    @property
+    def memory(self):
+        if self._memory is None:
+            from app.memory import ConversationMemory
+
+            self._memory = ConversationMemory()
+
+        return self._memory
+
+    @memory.setter
+    def memory(self, value):
+        self._memory = value
+
+    @property
+    def intent_router(self):
+        if self._intent_router is None:
+            from app.agents.intent_router import IntentRouterAgent
+
+            self._intent_router = IntentRouterAgent()
+
+        return self._intent_router
+
+    @intent_router.setter
+    def intent_router(self, value):
+        self._intent_router = value
+
+    @property
+    def knowledge_agent(self):
+        if self._knowledge_agent is None:
+            from app.agents.knowledge import KnowledgeAgent
+
+            self._knowledge_agent = KnowledgeAgent()
+
+        return self._knowledge_agent
+
+    @knowledge_agent.setter
+    def knowledge_agent(self, value):
+        self._knowledge_agent = value
+
+    @property
+    def ticket_agent(self):
+        if self._ticket_agent is None:
+            from app.agents.ticket import TicketAgent
+
+            self._ticket_agent = TicketAgent()
+
+        return self._ticket_agent
+
+    @ticket_agent.setter
+    def ticket_agent(self, value):
+        self._ticket_agent = value
+
+    @property
+    def complaint_agent(self):
+        if self._complaint_agent is None:
+            from app.agents.complaint import ComplaintAgent
+
+            self._complaint_agent = ComplaintAgent()
+
+        return self._complaint_agent
+
+    @complaint_agent.setter
+    def complaint_agent(self, value):
+        self._complaint_agent = value
+
+    @property
+    def compliance_agent(self):
+        if self._compliance_agent is None:
+            from app.agents.compliance import ComplianceAgent
+
+            self._compliance_agent = ComplianceAgent()
+
+        return self._compliance_agent
+
+    @compliance_agent.setter
+    def compliance_agent(self, value):
+        self._compliance_agent = value
+
+    @property
+    def chat_history_tool(self):
+        if self._chat_history_tool is None:
+            from app.tools.chat_history_tool import ChatHistoryTool
+
+            self._chat_history_tool = ChatHistoryTool()
+
+        return self._chat_history_tool
+
+    @chat_history_tool.setter
+    def chat_history_tool(self, value):
+        self._chat_history_tool = value
+
+    @property
+    def human_review_tool(self):
+        if self._human_review_tool is None:
+            from app.tools.human_review_tool import HumanReviewTool
+
+            self._human_review_tool = HumanReviewTool()
+
+        return self._human_review_tool
+
+    @human_review_tool.setter
+    def human_review_tool(self, value):
+        self._human_review_tool = value
+
+    @property
+    def long_term_memory_tool(self):
+        if self._long_term_memory_tool is None:
+            from app.tools.long_term_memory_tool import LongTermMemoryTool
+
+            self._long_term_memory_tool = LongTermMemoryTool()
+
+        return self._long_term_memory_tool
+
+    @long_term_memory_tool.setter
+    def long_term_memory_tool(self, value):
+        self._long_term_memory_tool = value
+
+    @property
+    def trace_tool(self):
+        if self._trace_tool is None:
+            from app.tools.trace_tool import TraceTool
+
+            self._trace_tool = TraceTool()
+
+        return self._trace_tool
+
+    @trace_tool.setter
+    def trace_tool(self, value):
+        self._trace_tool = value
 
     def _build_graph(self):
+        from langgraph.graph import END, START, StateGraph
+
         graph = StateGraph(ChatState)
 
         graph.add_node("load_memory", self._load_memory_node)
@@ -169,6 +289,9 @@ class Supervisor:
             "session_id": session_id,
             **create_working_memory(),
         }
+
+        if self.graph is None:
+            self.graph = self._build_graph()
 
         final_state = await self.graph.ainvoke(initial_state)
 

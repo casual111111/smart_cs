@@ -4,11 +4,8 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 from app.llm.client import LLMClient
-from app.tools.registry import ToolRegistry
 import time
 import uuid
-
-from app.tools.trace_tool import TraceTool
 
 @dataclass
 class AgentToolStep:
@@ -46,8 +43,34 @@ class BaseToolAgent:
         self.agent_name = agent_name
         self.allowed_tools = allowed_tools
         self.llm = LLMClient()
-        self.tool_registry = ToolRegistry()
-        self.trace_tool = TraceTool()
+        self._tool_registry = None
+        self._trace_tool = None
+
+    @property
+    def tool_registry(self):
+        if self._tool_registry is None:
+            from app.tools.registry import ToolRegistry
+
+            self._tool_registry = ToolRegistry()
+
+        return self._tool_registry
+
+    @tool_registry.setter
+    def tool_registry(self, value):
+        self._tool_registry = value
+
+    @property
+    def trace_tool(self):
+        if self._trace_tool is None:
+            from app.tools.trace_tool import TraceTool
+
+            self._trace_tool = TraceTool()
+
+        return self._trace_tool
+
+    @trace_tool.setter
+    def trace_tool(self, value):
+        self._trace_tool = value
 
     def get_available_tools(self) -> list[dict[str, Any]]:
         all_tools = self.tool_registry.list_tools()

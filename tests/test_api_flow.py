@@ -1,10 +1,18 @@
+import os
 import time
 import uuid
 
+import pytest
 import requests
 
 
 BASE_URL = "http://127.0.0.1:8000"
+
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_API_FLOW_TESTS") != "1",
+    reason="API flow tests require a running server; set RUN_API_FLOW_TESTS=1 to enable.",
+)
 
 
 def unique_name(prefix: str) -> str:

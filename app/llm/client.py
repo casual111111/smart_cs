@@ -1,7 +1,6 @@
 import os
 
 from dotenv import load_dotenv
-from openai import AsyncOpenAI
 
 
 load_dotenv()
@@ -27,6 +26,13 @@ class LLMClient:
         self.enabled = bool(self.api_key and self.base_url)
 
         if self.enabled:
+            try:
+                from openai import AsyncOpenAI
+            except ModuleNotFoundError:
+                self.enabled = False
+                self.client = None
+                return
+
             self.client = AsyncOpenAI(
                 api_key=self.api_key,
                 base_url=self.base_url,

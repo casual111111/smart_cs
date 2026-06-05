@@ -1,12 +1,15 @@
+from __future__ import annotations
+
 import re
 import time
 import uuid
+from typing import TYPE_CHECKING
 
 from app.agents.base_tool_agent import BaseToolAgent
-from app.models import Ticket
-from app.tools.order_tool import OrderTool
-from app.tools.registry import ToolResult
-from app.tools.ticket_tool import TicketTool
+from app.tools.result import ToolResult
+
+if TYPE_CHECKING:
+    from app.models import Ticket
 
 
 class TicketAgent(BaseToolAgent):
@@ -31,9 +34,35 @@ class TicketAgent(BaseToolAgent):
             ],
         )
 
-        # 保留原工具，供 API 查询接口直接使用
-        self.ticket_tool = TicketTool()
-        self.order_tool = OrderTool()
+        # 保留原工具，供 API 查询接口直接使用；真实用到时再初始化。
+        self._ticket_tool = None
+        self._order_tool = None
+
+    @property
+    def ticket_tool(self):
+        if self._ticket_tool is None:
+            from app.tools.ticket_tool import TicketTool
+
+            self._ticket_tool = TicketTool()
+
+        return self._ticket_tool
+
+    @ticket_tool.setter
+    def ticket_tool(self, value):
+        self._ticket_tool = value
+
+    @property
+    def order_tool(self):
+        if self._order_tool is None:
+            from app.tools.order_tool import OrderTool
+
+            self._order_tool = OrderTool()
+
+        return self._order_tool
+
+    @order_tool.setter
+    def order_tool(self, value):
+        self._order_tool = value
 
     async def run(
         self,
