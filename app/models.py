@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text,JSON
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
@@ -630,4 +630,63 @@ class HumanReviewTask(Base):
     reviewed_at: Mapped[datetime | None] = mapped_column(
         DateTime,
         nullable=True,
+    )
+
+class KnowledgeChunk(Base):
+    """
+    RAG 知识库 chunk 表。
+
+    MySQL 只保存 chunk 原文和元信息；
+    embedding 交给 Qdrant 保存。
+    """
+
+    __tablename__ = "knowledge_chunks"
+
+    id: Mapped[int] = mapped_column(
+        Integer,
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    chunk_id: Mapped[str] = mapped_column(
+        String(128),
+        unique=True,
+        index=True,
+        nullable=False,
+    )
+
+    source: Mapped[str] = mapped_column(
+        String(255),
+        index=True,
+        nullable=False,
+    )
+
+    content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    qdrant_point_id: Mapped[str | None] = mapped_column(
+        String(64),
+        unique=True,
+        index=True,
+        nullable=True,
+    )
+
+    metadata_json: Mapped[dict | None] = mapped_column(
+        "metadata",
+        JSON,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        default=datetime.now,
+        nullable=False,
     )

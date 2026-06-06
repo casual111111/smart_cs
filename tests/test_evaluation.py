@@ -1,4 +1,7 @@
 import asyncio
+import json
+import subprocess
+import sys
 
 from app.evaluation.metrics import calculate_metrics
 from app.evaluation.runner import load_eval_cases, run_evaluation
@@ -134,3 +137,19 @@ def test_calculate_metrics_handles_partial_tool_observations():
     assert metrics["agent_route_accuracy"] == 1.0
     assert metrics["tool_selection_accuracy"] == 1.0
     assert metrics["avg_latency_ms"] == 20.0
+
+
+def test_evaluation_runner_module_executes():
+    result = subprocess.run(
+        [sys.executable, "-m", "app.evaluation.runner"],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+    report = json.loads(result.stdout)
+
+    assert report["case_count"] >= 5
+    assert "metrics" in report
+    assert "intent_accuracy" in report["metrics"]
+    assert "results" in report
