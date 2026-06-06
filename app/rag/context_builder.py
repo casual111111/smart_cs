@@ -1,6 +1,8 @@
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
-from app.rag.retriever import RetrievedChunk
+if TYPE_CHECKING:
+    from app.rag.retriever import RetrievedChunk
 
 
 @dataclass
@@ -8,7 +10,7 @@ class RagContext:
     query: str
     context: str
     sources: list[str]
-    chunks: list[RetrievedChunk]
+    chunks: list["RetrievedChunk"]
 
 
 class ContextBuilder:
@@ -21,7 +23,7 @@ class ContextBuilder:
     def build(
         self,
         query: str,
-        chunks: list[RetrievedChunk],
+        chunks: list["RetrievedChunk"],
         max_chars: int = 1600,
     ) -> RagContext:
         context_parts: list[str] = []

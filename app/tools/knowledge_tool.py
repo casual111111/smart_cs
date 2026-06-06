@@ -1,5 +1,9 @@
+from typing import TYPE_CHECKING
+
 from app.rag.context_builder import ContextBuilder, RagContext
-from app.rag.retriever import RetrievedChunk, SimpleRetriever
+
+if TYPE_CHECKING:
+    from app.rag.retriever import RetrievedChunk
 
 
 class KnowledgeTool:
@@ -11,6 +15,8 @@ class KnowledgeTool:
     """
 
     def __init__(self):
+        from app.rag.retriever import SimpleRetriever
+
         self.retriever = SimpleRetriever()
         self.context_builder = ContextBuilder()
 
@@ -18,7 +24,7 @@ class KnowledgeTool:
         self,
         query: str,
         top_k: int = 3,
-    ) -> list[RetrievedChunk]:
+    ) -> list["RetrievedChunk"]:
         return self.retriever.retrieve(query, top_k=top_k)
 
     def build_rag_context(

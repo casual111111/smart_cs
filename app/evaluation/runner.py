@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import re
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -272,7 +274,8 @@ class DeterministicEvaluationSupervisor:
 
 
 def main() -> None:
-    report = asyncio.run(run_evaluation())
+    with contextlib.redirect_stdout(sys.stderr):
+        report = asyncio.run(run_evaluation())
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
