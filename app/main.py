@@ -43,7 +43,13 @@ from app.auth import (
 from typing import Annotated
 import uuid
 from app.tools.trace_tool import TraceTool
-
+from app.mcp.schemas import (
+    MCPToolsCallRequest,
+    MCPToolsCallResponse,
+    MCPToolsListRequest,
+    MCPToolsListResponse,
+)
+from app.mcp.server import MCPToolServer
 
 
 app = FastAPI(
@@ -59,7 +65,7 @@ chat_history_tool = ChatHistoryTool()
 tool_registry = ToolRegistry()
 trace_tool = TraceTool()
 human_review_tool = HumanReviewTool()
-
+mcp_tool_server = MCPToolServer()
 @app.get("/health")
 async def health_check():
     return {
@@ -574,3 +580,25 @@ async def get_metrics(
         ),
         "human_review": review_metrics,
     }
+
+@app.post("/mcp/tools/list", response_model=MCPToolsListResponse)
+async def mcp_tools_list(
+    request: MCPToolsListRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return mcp_tool_server.list_tools(
+        request_id=request.id,
+    )
+
+
+@app.post("/mcp/tools/call", response_model=MCPToolsCallResponse)
+async def mcp_tools_call(
+    request: MCPToolsCallRequest,
+    current_user: User = Depends(get_current_user),
+):
+    return await mcp_tool_server.call_tool(
+        name=request.params.name,
+        arguments=request.params.arguments,
+        user_id=current_user.user_id,
+        request_id=request.id,
+    )

@@ -1,8 +1,7 @@
 from __future__ import annotations
 
+import hashlib
 from typing import List
-
-from FlagEmbedding import BGEM3FlagModel
 
 
 class BGEEmbeddingClient:
@@ -23,13 +22,21 @@ class BGEEmbeddingClient:
         self.batch_size = batch_size
         self.max_length = max_length
 
-        self.model = BGEM3FlagModel(
-            model_name,
-            use_fp16=use_fp16,
-        )
+        try:
+            from FlagEmbedding import BGEM3FlagModel
+
+            self.model = BGEM3FlagModel(
+                model_name,
+                use_fp16=use_fp16,
+            )
+        except ModuleNotFoundError:
+            self.model = None
 
     def embed_query(self, text: str) -> List[float]:
         normalized_text = text.strip() if text and text.strip() else " "
+
+        if self.model is None:
+            return self._fallback_embedding(normalized_text)
 
         result = self.model.encode(
             [normalized_text],
@@ -51,6 +58,12 @@ class BGEEmbeddingClient:
         if not normalized_texts:
             return []
 
+        if self.model is None:
+            return [
+                self._fallback_embedding(text)
+                for text in normalized_texts
+            ]
+
         result = self.model.encode(
             normalized_texts,
             batch_size=self.batch_size,
@@ -61,3 +74,17 @@ class BGEEmbeddingClient:
         )
 
         return [vector.tolist() for vector in result["dense_vecs"]]
+
+    def _fallback_embedding(self, text: str, dimensions: int = 384) -> list[float]:
+        vector = [0.0] * dimensions
+
+        for token in text.lower().split():
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "big") % dimensions
+            sign = 1.0 if digest[4] % 2 == 0 else -1.0
+            vector[index] += sign
+
+        if not any(vector):
+            vector[0] = 1.0
+
+        return vector

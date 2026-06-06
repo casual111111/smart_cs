@@ -110,6 +110,60 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
+## MCP
+
+The existing HTTP adapter remains available at:
+
+- `POST /mcp/tools/list`
+- `POST /mcp/tools/call`
+
+The stdio MCP server entrypoint is:
+
+```bash
+python -m app.mcp.stdio_server
+```
+
+It registers:
+
+- `knowledge_rag_context(query: str, top_k: int = 3)`
+- `order_query(order_id: str)`
+
+`user_id` is read from `MCP_USER_ID`; when unset it defaults to `mcp-demo-user`.
+
+Claude Desktop example:
+
+```json
+{
+  "mcpServers": {
+    "smart-cs": {
+      "command": "python",
+      "args": ["-m", "app.mcp.stdio_server"],
+      "cwd": "C:\\Users\\15207\\Desktop\\ai 学习\\smart-cs",
+      "env": {
+        "MCP_USER_ID": "mcp-demo-user"
+      }
+    }
+  }
+}
+```
+
+Cursor example:
+
+```json
+{
+  "mcpServers": {
+    "smart-cs": {
+      "command": "python",
+      "args": ["-m", "app.mcp.stdio_server"],
+      "cwd": "C:\\Users\\15207\\Desktop\\ai 学习\\smart-cs",
+      "env": {
+        "MCP_USER_ID": "mcp-demo-user"
+      }
+    }
+  }
+}
+```
+
 ## Knowledge Base
 
 The RAG knowledge base lives under `data/knowledge_base/`. The current import script can generate e-commerce customer-service Markdown files from the `rjac/e-commerce-customer-support-qa` dataset:
