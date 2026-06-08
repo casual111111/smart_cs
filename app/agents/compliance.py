@@ -83,6 +83,9 @@ class ComplianceAgent:
     def __init__(self):
         self.llm_compliance_agent = LLMComplianceAgent()
 
+    async def run(self, content: str, context: str = "") -> dict:
+        return await self.check(content)
+
     async def check(self, content: str) -> dict:
         sanitized = self._mask_pii(content)
 

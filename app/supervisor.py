@@ -41,6 +41,8 @@ class ChatState(TypedDict, total=False):
     session_id: str
 
     context: str
+    optimized_context: str
+    context_trace: dict
 
     intent: IntentType
     intent_confidence: float
@@ -92,6 +94,7 @@ class Supervisor:
         self._human_review_tool = None
         self._long_term_memory_tool = None
         self._trace_tool = None
+        self._context_builder = None
 
         self.graph = None
 
@@ -225,12 +228,26 @@ class Supervisor:
     def trace_tool(self, value):
         self._trace_tool = value
 
+    @property
+    def context_builder(self):
+        if self._context_builder is None:
+            from app.context import SmartCSContextBuilder
+
+            self._context_builder = SmartCSContextBuilder()
+
+        return self._context_builder
+
+    @context_builder.setter
+    def context_builder(self, value):
+        self._context_builder = value
+
     def _build_graph(self):
         from langgraph.graph import END, START, StateGraph
 
         graph = StateGraph(ChatState)
 
         graph.add_node("load_memory", self._load_memory_node)
+        graph.add_node("build_context", self._build_context_node)
         graph.add_node("route_intent", self._route_intent_node)
         graph.add_node("ticket", self._ticket_node)
         graph.add_node("knowledge", self._knowledge_node)
@@ -242,7 +259,8 @@ class Supervisor:
         graph.add_node("save_memory", self._save_memory_node)
 
         graph.add_edge(START, "load_memory")
-        graph.add_edge("load_memory", "route_intent")
+        graph.add_edge("load_memory", "build_context")
+        graph.add_edge("build_context", "route_intent")
 
         graph.add_conditional_edges(
             "route_intent",
@@ -291,9 +309,17 @@ class Supervisor:
         }
 
         if self.graph is None:
-            self.graph = self._build_graph()
+            try:
+                self.graph = self._build_graph()
+            except ModuleNotFoundError as exc:
+                if exc.name != "langgraph":
+                    raise
+                self.graph = None
 
-        final_state = await self.graph.ainvoke(initial_state)
+        if self.graph is None:
+            final_state = await self._run_fallback_graph(initial_state)
+        else:
+            final_state = await self.graph.ainvoke(initial_state)
 
         return {
             "response": final_state["final_response"],
@@ -306,7 +332,37 @@ class Supervisor:
             "need_human_review": final_state.get("need_human_review", False),
             "review_task_id": final_state.get("review_task_id"),
             "memory_count": final_state.get("memory_count", 0),
+            "context_trace": final_state.get("context_trace", {}),
         }
+
+    async def _run_fallback_graph(self, initial_state: ChatState) -> ChatState:
+        state: ChatState = dict(initial_state)
+
+        for node in [
+            self._load_memory_node,
+            self._build_context_node,
+            self._route_intent_node,
+        ]:
+            state.update(await node(state))
+
+        route = self._choose_route(state)
+        if route == "ticket":
+            state.update(await self._ticket_node(state))
+        elif route == "knowledge":
+            state.update(await self._knowledge_node(state))
+        elif route == "complaint":
+            state.update(await self._complaint_node(state))
+        else:
+            state.update(await self._unknown_node(state))
+
+        state.update(await self._compliance_node(state))
+        state.update(await self._human_review_check_node(state))
+
+        if self._choose_review_route(state) == "create_review_task":
+            state.update(await self._create_review_task_node(state))
+
+        state.update(await self._save_memory_node(state))
+        return state
 
     async def _load_memory_node(self, state: ChatState) -> dict:
         session_id = state["session_id"]
@@ -330,11 +386,24 @@ class Supervisor:
             "current_agent": "memory_loader",
         }
 
+    async def _build_context_node(self, state: ChatState) -> dict:
+        optimized_context, context_trace = self._build_agent_context(
+            state,
+            agent_name="router",
+            current_task="Classify the user's current customer-service intent.",
+        )
+
+        return {
+            "optimized_context": optimized_context,
+            "context_trace": context_trace,
+            "current_agent": "context_builder",
+        }
+
     async def _route_intent_node(self, state: ChatState) -> dict:
         start_time = time.perf_counter()
         intent_result = await self.intent_router.run(
             message=state["message"],
-            context=state.get("context", ""),
+            context=state.get("optimized_context") or state.get("context", ""),
         )
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
@@ -379,10 +448,15 @@ class Supervisor:
         return "unknown"
 
     async def _ticket_node(self, state: ChatState) -> dict:
+        optimized_context, context_trace = self._build_agent_context(
+            state,
+            agent_name="ticket",
+            current_task="Resolve ticket, refund, order, or account-service needs.",
+        )
         raw_response = await self.ticket_agent.run(
             message=state["message"],
             user_id=state["user_id"],
-            context=state.get("context", ""),
+            context=optimized_context or state.get("context", ""),
             session_id=state["session_id"],
             trace_id=state.get("trace_id"),
         )
@@ -390,13 +464,20 @@ class Supervisor:
         return {
             "raw_response": raw_response,
             "current_agent": "ticket_agent",
+            "optimized_context": optimized_context,
+            "context_trace": context_trace,
         }
 
     async def _complaint_node(self, state: ChatState) -> dict:
+        optimized_context, context_trace = self._build_agent_context(
+            state,
+            agent_name="complaint",
+            current_task="Handle a complaint or human escalation request.",
+        )
         raw_response = await self.complaint_agent.run(
             message=state["message"],
             user_id=state["user_id"],
-            context=state.get("context", ""),
+            context=optimized_context or state.get("context", ""),
             session_id=state["session_id"],
             trace_id=state.get("trace_id"),
         )
@@ -404,13 +485,20 @@ class Supervisor:
         return {
             "raw_response": raw_response,
             "current_agent": "complaint_agent",
+            "optimized_context": optimized_context,
+            "context_trace": context_trace,
         }
 
     async def _knowledge_node(self, state: ChatState) -> dict:
+        optimized_context, context_trace = self._build_agent_context(
+            state,
+            agent_name="knowledge",
+            current_task="Answer the user's knowledge-base or policy question.",
+        )
         raw_response = await self.knowledge_agent.run(
             message=state["message"],
             user_id=state["user_id"],
-            context=state.get("context", ""),
+            context=optimized_context or state.get("context", ""),
             session_id=state["session_id"],
             trace_id=state.get("trace_id"),
         )
@@ -418,6 +506,8 @@ class Supervisor:
         return {
             "raw_response": raw_response,
             "current_agent": "knowledge_agent",
+            "optimized_context": optimized_context,
+            "context_trace": context_trace,
         }
 
     async def _unknown_node(self, state: ChatState) -> dict:
@@ -426,10 +516,21 @@ class Supervisor:
         }
 
     async def _compliance_node(self, state: ChatState) -> dict:
-        start_time = time.perf_counter()
-        compliance_result = await self.compliance_agent.check(
-            state["raw_response"]
+        optimized_context, context_trace = self._build_agent_context(
+            state,
+            agent_name="compliance",
+            current_task="Check the draft response for compliance and safety.",
         )
+        start_time = time.perf_counter()
+        if hasattr(self.compliance_agent, "run"):
+            compliance_result = await self.compliance_agent.run(
+                state["raw_response"],
+                context=optimized_context or state.get("context", ""),
+            )
+        else:
+            compliance_result = await self.compliance_agent.check(
+                state["raw_response"]
+            )
         latency_ms = int((time.perf_counter() - start_time) * 1000)
 
         if not compliance_result["passed"]:
@@ -464,7 +565,35 @@ class Supervisor:
                 "decision_source"
             ),
             "compliance_result": compliance_result,
+            "optimized_context": optimized_context,
+            "context_trace": context_trace,
         }
+
+    def _build_agent_context(
+        self,
+        state: ChatState,
+        agent_name: str,
+        current_task: str,
+    ) -> tuple[str, dict]:
+        return self.context_builder.build(
+            message=state["message"],
+            state=dict(state),
+            agent_name=agent_name,
+            system_policy=(
+                "You are Smart-CS, a multi-agent customer service system. "
+                "Use provided memory, evidence, and policies faithfully."
+            ),
+            current_task=current_task,
+            working_state=dict(state),
+            base_context=state.get("context", ""),
+            long_context="",
+            rag_context=None,
+            tool_observations=state.get("tool_observations", []),
+            output_requirements=(
+                "Return a concise, polite customer-service answer. "
+                "Do not invent tickets, orders, policies, or tool results."
+            ),
+        )
 
     async def _human_review_check_node(self, state: ChatState) -> dict:
         reasons = self._build_human_review_reasons(state)

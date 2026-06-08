@@ -34,6 +34,7 @@ class QdrantVectorStore:
             "smart_cs_chunks",
         )
         self.client = QdrantClient(url=self.url)
+        self.available = True
 
     def point_id(self, chunk_id: str) -> str:
         """
@@ -50,7 +51,16 @@ class QdrantVectorStore:
         )
 
     def _collection_exists(self) -> bool:
-        collections = self.client.get_collections().collections
+        if not self.available:
+            return False
+
+        try:
+            collections = self.client.get_collections().collections
+        except Exception as exc:
+            print(f"[RAG] Qdrant unavailable: {exc}")
+            self.available = False
+            return False
+
         collection_names = {
             collection.name
             for collection in collections
@@ -64,29 +74,43 @@ class QdrantVectorStore:
         if self._collection_exists():
             return
 
-        self.client.create_collection(
-            collection_name=self.collection_name,
-            vectors_config=VectorParams(
-                size=vector_size or 768,
-                distance=Distance.COSINE,
-            ),
-        )
+        try:
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(
+                    size=vector_size or 768,
+                    distance=Distance.COSINE,
+                ),
+            )
+        except Exception as exc:
+            print(f"[RAG] Qdrant create_collection skipped: {exc}")
+            self.available = False
 
     def count(self) -> int:
         if not self._collection_exists():
             return 0
 
-        result = self.client.count(
-            collection_name=self.collection_name,
-            exact=True,
-        )
+        try:
+            result = self.client.count(
+                collection_name=self.collection_name,
+                exact=True,
+            )
+        except Exception as exc:
+            print(f"[RAG] Qdrant count skipped: {exc}")
+            self.available = False
+            return 0
+
         return result.count
 
     def clear(self) -> None:
         if self._collection_exists():
-            self.client.delete_collection(
-                collection_name=self.collection_name,
-            )
+            try:
+                self.client.delete_collection(
+                    collection_name=self.collection_name,
+                )
+            except Exception as exc:
+                print(f"[RAG] Qdrant clear skipped: {exc}")
+                self.available = False
 
     def add_documents(
         self,
@@ -96,8 +120,14 @@ class QdrantVectorStore:
         if not documents:
             return
 
+        if not self.available:
+            return
+
         vector_size = len(documents[0].embedding)
         self.create_collection_if_not_exists(vector_size=vector_size)
+
+        if not self.available:
+            return
 
         points: list[PointStruct] = []
 
@@ -115,17 +145,26 @@ class QdrantVectorStore:
             )
 
             if len(points) >= batch_size:
+                try:
+                    self.client.upsert(
+                        collection_name=self.collection_name,
+                        points=points,
+                    )
+                except Exception as exc:
+                    print(f"[RAG] Qdrant upsert skipped: {exc}")
+                    self.available = False
+                    return
+                points.clear()
+
+        if points:
+            try:
                 self.client.upsert(
                     collection_name=self.collection_name,
                     points=points,
                 )
-                points.clear()
-
-        if points:
-            self.client.upsert(
-                collection_name=self.collection_name,
-                points=points,
-            )
+            except Exception as exc:
+                print(f"[RAG] Qdrant upsert skipped: {exc}")
+                self.available = False
 
     def search(
         self,
@@ -151,12 +190,17 @@ class QdrantVectorStore:
         if conditions:
             query_filter = Filter(must=conditions)
 
-        response = self.client.query_points(
-            collection_name=self.collection_name,
-            query=query_embedding,
-            query_filter=query_filter,
-            limit=top_k,
-        )
+        try:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding,
+                query_filter=query_filter,
+                limit=top_k,
+            )
+        except Exception as exc:
+            print(f"[RAG] Qdrant search skipped: {exc}")
+            self.available = False
+            return []
 
         results: list[VectorSearchResult] = []
 
