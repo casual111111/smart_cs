@@ -43,6 +43,7 @@ class ChatState(TypedDict, total=False):
     context: str
     optimized_context: str
     context_trace: dict
+    context_token_count: int
 
     intent: IntentType
     intent_confidence: float
@@ -333,6 +334,7 @@ class Supervisor:
             "review_task_id": final_state.get("review_task_id"),
             "memory_count": final_state.get("memory_count", 0),
             "context_trace": final_state.get("context_trace", {}),
+            "context_token_count": final_state.get("context_token_count", 0),
         }
 
     async def _run_fallback_graph(self, initial_state: ChatState) -> ChatState:
@@ -396,6 +398,7 @@ class Supervisor:
         return {
             "optimized_context": optimized_context,
             "context_trace": context_trace,
+            "context_token_count": context_trace.get("used_tokens", 0),
             "current_agent": "context_builder",
         }
 
@@ -466,6 +469,7 @@ class Supervisor:
             "current_agent": "ticket_agent",
             "optimized_context": optimized_context,
             "context_trace": context_trace,
+            "context_token_count": context_trace.get("used_tokens", 0),
         }
 
     async def _complaint_node(self, state: ChatState) -> dict:
@@ -487,6 +491,7 @@ class Supervisor:
             "current_agent": "complaint_agent",
             "optimized_context": optimized_context,
             "context_trace": context_trace,
+            "context_token_count": context_trace.get("used_tokens", 0),
         }
 
     async def _knowledge_node(self, state: ChatState) -> dict:
@@ -508,6 +513,7 @@ class Supervisor:
             "current_agent": "knowledge_agent",
             "optimized_context": optimized_context,
             "context_trace": context_trace,
+            "context_token_count": context_trace.get("used_tokens", 0),
         }
 
     async def _unknown_node(self, state: ChatState) -> dict:
@@ -567,6 +573,7 @@ class Supervisor:
             "compliance_result": compliance_result,
             "optimized_context": optimized_context,
             "context_trace": context_trace,
+            "context_token_count": context_trace.get("used_tokens", 0),
         }
 
     def _build_agent_context(
