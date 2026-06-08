@@ -6,7 +6,14 @@ from mcp.server.fastmcp import FastMCP
 from app.mcp.server import MCPToolServer
 
 
-mcp = FastMCP("smartcs")
+mcp = FastMCP(
+    "smart-cs",
+    host="0.0.0.0",
+    port=8000,
+    stateless_http=True,
+    json_response=True,
+)
+
 mcp_tool_server = MCPToolServer()
 
 
@@ -56,7 +63,7 @@ async def order_query(order_id: str) -> dict[str, Any]:
 
 
 def main() -> None:
-    mcp.run()
+    mcp.run(transport="streamable-http")
 
 
 if __name__ == "__main__":
