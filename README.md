@@ -228,6 +228,20 @@ Run it with:
 python -m app.evaluation.runner
 ```
 
+## RAG Retrieval Evaluation
+
+This project is not a general-purpose RAG benchmark. It includes a small domain evaluation set for the local customer-service knowledge base under `app/evaluation/rag/rag_eval_cases.json`.
+
+The retrieval cases cover refund timing and eligibility, order cancellation, returns and after-sales flows, complaints, human escalation, service requests, and compliance or risk hints. Metrics include `Hit@K`, `Recall@K`, `Precision@K`, and `MRR@K`.
+
+Run it with:
+
+```bash
+python -m app.evaluation.rag.runner
+```
+
+Default unit tests do not require Qdrant. Real retrieval evaluation requires MySQL and Qdrant to be running, with the knowledge-base index rebuilt before running the command.
+
 ## API Surface
 
 Main routes include:

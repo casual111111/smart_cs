@@ -1,0 +1,92 @@
+[
+  {
+    "id": "rag_refund_001",
+    "query": "退款多久到账？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["3-5 business days", "refund"]
+  },
+  {
+    "id": "rag_refund_002",
+    "query": "货到付款退款一般需要多久？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["7-14 business days", "Cash on Delivery"]
+  },
+  {
+    "id": "rag_refund_003",
+    "query": "退货后退款状态怎么查询？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["Checking the status of a refund", "original payment method"]
+  },
+  {
+    "id": "rag_refund_004",
+    "query": "退货快递费可以报销吗？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["courier charges", "reimbursed"]
+  },
+  {
+    "id": "rag_cancel_001",
+    "query": "下单后想取消订单，有什么规则？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["Order Cancellation", "cancel"]
+  },
+  {
+    "id": "rag_cancel_002",
+    "query": "超过取消窗口还能全额退款吗？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["24-hour window", "partial refund"]
+  },
+  {
+    "id": "rag_return_001",
+    "query": "收到错误商品后如何退货？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["Returning a wrong item", "return label"]
+  },
+  {
+    "id": "rag_return_002",
+    "query": "商品有问题，退换货流程是什么？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["returning or exchanging", "return process"]
+  },
+  {
+    "id": "rag_return_003",
+    "query": "哪些商品不支持退货？",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["Products not eligible for returns", "not eligible for returns"]
+  },
+  {
+    "id": "rag_after_sales_001",
+    "query": "保修期内怎么申请售后维修？",
+    "expected_sources": ["ecommerce_warranty.md"],
+    "expected_keywords": ["Warranty Claim Process", "claim the warranty"]
+  },
+  {
+    "id": "rag_after_sales_002",
+    "query": "没有保修卡还能保修吗？",
+    "expected_sources": ["ecommerce_warranty.md"],
+    "expected_keywords": ["without a warranty card", "verify your purchase"]
+  },
+  {
+    "id": "rag_complaint_001",
+    "query": "我要投诉最近购买的商品问题，客服会怎么处理？",
+    "expected_sources": ["ecommerce_shopping.md"],
+    "expected_keywords": ["complaint", "troubleshooting"]
+  },
+  {
+    "id": "rag_human_001",
+    "query": "我想转人工或者主管处理退款争议。",
+    "expected_sources": ["ecommerce_cancellations_and_returns.md"],
+    "expected_keywords": ["supervisor", "speak to a supervisor"]
+  },
+  {
+    "id": "rag_ticket_001",
+    "query": "售后服务请求创建后，服务团队多久联系我？",
+    "expected_sources": ["ecommerce_warranty.md"],
+    "expected_keywords": ["service request", "within the next 24 hours"]
+  },
+  {
+    "id": "rag_risk_001",
+    "query": "保修时产品被非授权人员维修过会有什么风险？",
+    "expected_sources": ["ecommerce_warranty.md"],
+    "expected_keywords": ["unauthorized personnel", "void the warranty"]
+  }
+]
